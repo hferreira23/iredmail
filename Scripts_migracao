@@ -1,0 +1,78 @@
+# migração de domínio
+
+set @d = '';
+set @h1 = 4960;
+set @h2 = 25600;
+set @h3 = 102400;
+set @s1 = 5120;
+set @s2 = 102400;
+
+INSERT INTO vmail.domain (`domain` , `description` , `aliases` , `mailboxes` , `maxquota` , `transport` , `backupmx` , `created` , `modified` , `active`)
+
+SELECT `domain` , `description` , `aliases` , `mailboxes` , `maxquota` , `transport` , `backupmx` , `created` , `modified` , `active`
+FROM test.`domain`
+WHERE domain LIKE @d;
+
+# Atualizar maxquota - Quota total do domínio
+
+UPDATE vmail.domain set maxquota = @ where domain like @d;
+
+# Inserir transport no dominio
+
+UPDATE vmail.domain set transport = 'dovecot' where domain like @d;
+
+# Migração Alias
+
+INSERT INTO vmail.alias (`address`, `goto`, `domain`, `created`,  `modified`, `active`)
+
+SELECT `address`, `goto`, `domain`, `created`,  `modified`, `active` FROM test.alias WHERE domain like @d;
+
+# Migração de mailboxes
+
+INSERT INTO vmail.mailbox (username, `password`, `name`, maildir, quota, domain, created, modified, active)
+
+SELECT username, `password`, `name`, maildir, quota, domain, created, modified, active FROM test.mailbox WHERE domain like @d;
+
+# Ajuste da quota
+
+UPDATE vmail.mailbox SET quota = quota / 1000000 where domain like @d;
+
+# Atualizar local_part
+
+UPDATE vmail.mailbox SET local_part = SUBSTRING_INDEX(`username`,'@',1);
+
+######## Desativar email no Typhoon
+
+update vmail.domain set domain=concat(domain, '1') where domain = @d;
+
+
+
+####################### Ativar email no typhoon
+
+update vmail.domain set domain = '' where domain = '';
+
+
+
+
+######## Desativar email no Boreas
+
+set @d = '';
+
+update postfix.domain set domain=concat(domain, '1') where domain = @d;
+
+##### Migração IMAP ####################
+
+set @d = '';
+
+UPDATE mailbox SET `password` = '$1$52e65fcd$DDPadmMcu1JLwXhL6EJzb/' where domain like @d
+
+############################################################### OLD - Não usar
+
+INSERT INTO `mailbox` (`username`, `password`, `name`, `maildir`, `quota`, `domain`, `created`, `modified`, `active`, `isadmin`, `isglobaladmin`, `enablesmtp`, `enablesmtpsecured`, `enablepop3`, `enablepop3secured`, `enableimap`, `enableimapsecured`, `enabledeliver`, `enablelda`, `enablemanagesieve`, `enablemanagesievesecured`, `enablesieve`, `enablesievesecured`, `enableinternal`, `enabledoveadm`, `enablelib-storage`, `lastlogindate`, `lastloginipv4`, `storagebasedirectory`, `storagenode`, `language`, `rank`, `passwordlastchange`,  `expired`, `local_part`, `bytes`, `messages`) VALUES 
+INSERT INTO `domain` (`domain`, `description`, `aliases`, `mailboxes`, `defaultuserquota`, `transport`, `backupmx`, `created`, `modified`, `active`,`maxquota`,`quota`,`minpasswordlength`,`maxpasswordlength`,`expired`) VALUES 
+
+update mailbox set storagebasedirectory = '/data/mailvirtual';
+
+UPDATE mailbox SET quota = quota / 1024000 where domain = pronodis.pt;
+
+UPDATE mailbox SET local_part = SUBSTRING_INDEX(`username`,'@',1);
